@@ -1,6 +1,14 @@
 import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import { systemPrompt } from "./SystemPrompt";
+import { confidentialContext } from "./confidentialContext";
+import {
+  detectConfidentialLeak,
+  detectInjectionTechniques,
+  scoreAttempt,
+  scoreLeak,
+  type SecurityReport,
+} from "./promptSecurity";
 
 const modelName = "gemini-flash-latest";
 const promptProtectionReply =
@@ -46,24 +54,57 @@ function sanitizeReply(text: string): string {
   return text;
 }
 
-export async function generateChatReply(userMessage: string): Promise<string> {
+function buildPolicyBlockedReport(userMessage: string): SecurityReport {
+  const techniques = detectInjectionTechniques(userMessage);
+  return {
+    detectedTechniques: techniques,
+    attemptScore: scoreAttempt(techniques),
+    leakScore: 0,
+    confidentialLeakDetected: false,
+    blockedByPolicy: true,
+  };
+}
+
+export type ChatGenerationResult = {
+  reply: string;
+  securityReport: SecurityReport;
+};
+
+export async function generateChatReply(userMessage: string): Promise<ChatGenerationResult> {
   if (!userMessage.trim()) {
     throw new Error("Message cannot be empty.");
   }
 
   if (isPromptProbe(userMessage)) {
-    return promptProtectionReply;
+    return {
+      reply: promptProtectionReply,
+      securityReport: buildPolicyBlockedReport(userMessage),
+    };
   }
+
+  const techniques = detectInjectionTechniques(userMessage);
 
   const ai = getClient();
   const response = await ai.models.generateContent({
     model: modelName,
     config: {
-      systemInstruction: systemPrompt,
+      systemInstruction: `${systemPrompt}\n\n${confidentialContext}`,
     },
     contents: userMessage,
   });
 
   const rawText = response.text?.trim() || "I could not generate a response right now.";
-  return sanitizeReply(rawText);
+  const confidentialLeakDetected = detectConfidentialLeak(rawText);
+  const reply = sanitizeReply(rawText);
+
+  return {
+    reply,
+    securityReport: {
+      detectedTechniques: techniques,
+      attemptScore: scoreAttempt(techniques),
+      leakScore: scoreLeak(confidentialLeakDetected),
+      confidentialLeakDetected,
+      blockedByPolicy: confidentialLeakDetected,
+    },
+  };
 }

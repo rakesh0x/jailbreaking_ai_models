@@ -66,8 +66,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const reply = await generateChatReply(message);
-    return NextResponse.json({ reply }, { headers: { "Cache-Control": "no-store" } });
+    const result = await generateChatReply(message);
+    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     const description =
       error instanceof Error ? error.message : "Unknown server error";
