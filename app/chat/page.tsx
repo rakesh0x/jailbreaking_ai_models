@@ -11,6 +11,20 @@ type ChatMessage = {
     content: string;
 };
 
+type SemanticClassification = {
+    label:
+        | "benign"
+        | "prompt_exfiltration"
+        | "instruction_override"
+        | "secret_request"
+        | "jailbreak_intent"
+        | "data_exfiltration"
+        | "unknown";
+    confidence: number;
+    riskLevel: "low" | "medium" | "high";
+    explanation: string;
+};
+
 export default function ChatPage() {
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([
@@ -22,6 +36,7 @@ export default function ChatPage() {
     ]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [classification, setClassification] = useState<SemanticClassification | null>(null);
 
     async function sendMessage() {
         setError("");
@@ -46,6 +61,7 @@ export default function ChatPage() {
             const data = (await response.json()) as {
                 reply?: string;
                 error?: string;
+                classification?: SemanticClassification;
             };
 
             if (!response.ok) {
@@ -56,12 +72,14 @@ export default function ChatPage() {
                 ...prev,
                 { role: "assistant", content: data.reply || "No response text returned." },
             ]);
+            setClassification(data.classification ?? null);
         } catch (submitError) {
             const messageText =
                 submitError instanceof Error
                     ? submitError.message
                     : "An unknown error occurred.";
             setError(messageText);
+            setClassification(null);
             setMessages((prev) => [
                 ...prev,
                 {
@@ -147,6 +165,31 @@ export default function ChatPage() {
                         {loading ? "..." : "Send"}
                     </button>
                 </form>
+
+                {classification ? (
+                    <section className={styles.securityPanel}>
+                        <div className={styles.securityHeader}>Semantic Classifier</div>
+                        <div className={styles.securityGrid}>
+                            <div>
+                                <span className={styles.metricLabel}>Label</span>
+                                <p className={styles.metricValue}>{classification.label}</p>
+                            </div>
+                            <div>
+                                <span className={styles.metricLabel}>Risk</span>
+                                <p className={styles.metricValue}>{classification.riskLevel}</p>
+                            </div>
+                            <div>
+                                <span className={styles.metricLabel}>Confidence</span>
+                                <p className={styles.metricValue}>{classification.confidence}%</p>
+                            </div>
+                        </div>
+
+                        <div className={styles.techniquesWrap}>
+                            <span className={styles.metricLabel}>Explanation</span>
+                            <p className={styles.noTechniques}>{classification.explanation}</p>
+                        </div>
+                    </section>
+                ) : null}
 
                 {error ? <p className={styles.errorText}>{error}</p> : null}
             </section>
