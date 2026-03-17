@@ -6,38 +6,9 @@ import styles from "./page.module.css";
 
 const bodyFont = DM_Sans({ subsets: ["latin"] });
 
-type TechniqueId =
-    | "role_override"
-    | "instruction_override"
-    | "prompt_exfiltration"
-    | "secret_request"
-    | "jailbreak_intent"
-    | "encoding_obfuscation"
-    | "data_exfiltration"
-    | "multi_step_extraction";
-
-type SecurityReport = {
-    detectedTechniques: TechniqueId[];
-    attemptScore: number;
-    leakScore: number;
-    confidentialLeakDetected: boolean;
-    blockedByPolicy: boolean;
-};
-
 type ChatMessage = {
     role: "user" | "assistant";
     content: string;
-};
-
-const techniqueLabel: Record<TechniqueId, string> = {
-    role_override: "Role override",
-    instruction_override: "Instruction override",
-    prompt_exfiltration: "Prompt exfiltration",
-    secret_request: "Secret request",
-    jailbreak_intent: "Jailbreak intent",
-    encoding_obfuscation: "Encoding obfuscation",
-    data_exfiltration: "Data exfiltration",
-    multi_step_extraction: "Multi-step extraction",
 };
 
 export default function ChatPage() {
@@ -51,7 +22,6 @@ export default function ChatPage() {
     ]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
-    const [securityReport, setSecurityReport] = useState<SecurityReport | null>(null);
 
     async function sendMessage() {
         setError("");
@@ -76,14 +46,11 @@ export default function ChatPage() {
             const data = (await response.json()) as {
                 reply?: string;
                 error?: string;
-                securityReport?: SecurityReport;
             };
 
             if (!response.ok) {
                 throw new Error(data.error || "Request failed.");
             }
-
-            setSecurityReport(data.securityReport ?? null);
 
             setMessages((prev) => [
                 ...prev,
@@ -102,7 +69,6 @@ export default function ChatPage() {
                     content: "I ran into an error while generating a reply. Please try again.",
                 },
             ]);
-            setSecurityReport(null);
         } finally {
             setLoading(false);
         }
@@ -181,43 +147,6 @@ export default function ChatPage() {
                         {loading ? "..." : "Send"}
                     </button>
                 </form>
-
-                {securityReport ? (
-                    <section className={styles.securityPanel}>
-                        <div className={styles.securityHeader}>Prompt Injection Report</div>
-                        <div className={styles.securityGrid}>
-                            <div>
-                                <span className={styles.metricLabel}>Attempt Score</span>
-                                <p className={styles.metricValue}>{securityReport.attemptScore}/100</p>
-                            </div>
-                            <div>
-                                <span className={styles.metricLabel}>Leak Score</span>
-                                <p className={styles.metricValue}>{securityReport.leakScore}/100</p>
-                            </div>
-                            <div>
-                                <span className={styles.metricLabel}>Leak Detected</span>
-                                <p className={styles.metricValue}>
-                                    {securityReport.confidentialLeakDetected ? "Yes" : "No"}
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className={styles.techniquesWrap}>
-                            <span className={styles.metricLabel}>Detected Techniques</span>
-                            {securityReport.detectedTechniques.length ? (
-                                <div className={styles.techniquesList}>
-                                    {securityReport.detectedTechniques.map((technique) => (
-                                        <span key={technique} className={styles.techniqueBadge}>
-                                            {techniqueLabel[technique]}
-                                        </span>
-                                    ))}
-                                </div>
-                            ) : (
-                                <p className={styles.noTechniques}>None detected</p>
-                            )}
-                        </div>
-                    </section>
-                ) : null}
 
                 {error ? <p className={styles.errorText}>{error}</p> : null}
             </section>
