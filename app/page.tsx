@@ -1,5 +1,8 @@
+import ChatPage from "./chat/page"
 export default function Home() {
   return (
-    <h1>chatbot function</h1>
+    <div>
+      <ChatPage/>
+    </div>
   );
 }
