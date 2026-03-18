@@ -1,17 +1,20 @@
 import "server-only";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { systemPrompt } from "./SystemPrompt";
 
-const modelName = "gemini-2.5-flash";
+const modelName = "llama-3.3-70b-versatile";
 
-function getClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
+function getClient(): OpenAI {
+  const apiKey = process.env.GROQ_API_KEY;
 
   if (!apiKey) {
-    throw new Error("Missing GEMINI_API_KEY environment variable.");
+    throw new Error("Missing GROQ_API_KEY environment variable.");
   }
 
-  return new GoogleGenAI({ apiKey });
+  return new OpenAI({
+    apiKey,
+    baseURL: "https://api.groq.com/openai/v1",
+  });
 }
 
 export async function generateChatReply(userMessage: string): Promise<string> {
@@ -19,15 +22,27 @@ export async function generateChatReply(userMessage: string): Promise<string> {
     throw new Error("Message cannot be empty.");
   }
 
-  const ai = getClient();
+  const client = getClient();
 
-  const response = await ai.models.generateContent({
+  const response = await client.chat.completions.create({
     model: modelName,
-    config: {
-      systemInstruction: systemPrompt,
-    },
-    contents: userMessage,
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "system",
+        content: systemPrompt,
+      },
+      {
+        role: "user",
+        content: userMessage,
+      },
+    ],
   });
 
-  return response.text?.trim() || "I could not generate a response right now.";
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    return "I could not generate a response right now.";
+  }
+
+  return content.trim();
 }

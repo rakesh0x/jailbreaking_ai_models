@@ -1,5 +1,5 @@
 import "server-only";
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 
 export type ClassifierLabel =
     | "benign"
@@ -17,7 +17,7 @@ export type SemanticClassification = {
     explanation: string;
 };
 
-const modelName = "gemini-2.5-flash";
+const modelName = "llama-3.3-70b-versatile";
 
 const classifierInstruction = `You are a security intent classifier.
 Classify the user prompt into one label from this list only:
@@ -45,13 +45,16 @@ Rules:
 - If the user asks to dump internal/private records, use data_exfiltration.
 - Otherwise use benign.`;
 
-function getClient(): GoogleGenAI {
-    const apiKey = process.env.GEMINI_API_KEY;
+function getClient(): OpenAI {
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-        throw new Error("Missing GEMINI_API_KEY environment variable.");
+        throw new Error("Missing GROQ_API_KEY environment variable.");
     }
 
-    return new GoogleGenAI({ apiKey });
+    return new OpenAI({
+        apiKey,
+        baseURL: "https://api.groq.com/openai/v1",
+    });
 }
 
 function parseJsonObject(text: string): unknown {
@@ -139,16 +142,24 @@ export async function semanticClassifier(userPrompt: string): Promise<SemanticCl
         };
     }
 
-    const ai = getClient();
-    const result = await ai.models.generateContent({
+    const client = getClient();
+    const response = await client.chat.completions.create({
         model: modelName,
-        config: {
-            systemInstruction: classifierInstruction,
-            temperature: 0,
-        },
-        contents: userPrompt,
+        max_tokens: 256,
+        temperature: 0,
+        messages: [
+            {
+                role: "system",
+                content: classifierInstruction,
+            },
+            {
+                role: "user",
+                content: userPrompt,
+            },
+        ],
     });
 
-    const parsed = parseJsonObject(result.text || "");
+    const content = response.choices[0]?.message?.content || "";
+    const parsed = parseJsonObject(content);
     return normalizeClassification(parsed);
 }
