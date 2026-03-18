@@ -2,7 +2,7 @@ import "server-only";
 import { GoogleGenAI } from "@google/genai";
 import { systemPrompt } from "./SystemPrompt";
 
-const modelName = "gemini-flash-latest";
+const modelName = "gemini-2.5-flash";
 
 function getClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;

@@ -17,7 +17,7 @@ export type SemanticClassification = {
     explanation: string;
 };
 
-const modelName = "gemini-flash-latest";
+const modelName = "gemini-2.5-flash";
 
 const classifierInstruction = `You are a security intent classifier.
 Classify the user prompt into one label from this list only:
