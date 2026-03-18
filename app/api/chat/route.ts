@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateChatReply } from "@/lib/gemini";
 import { semanticClassifier } from "@/lib/semanticClassifier";
+import { calculateInjectionScore, type InjectionScore } from "@/lib/markingSchema";
 
 export type ChatRequest = {
   message?: string;
@@ -16,9 +17,10 @@ export async function POST(request: Request) {
     }
 
     const classification = await semanticClassifier(message);
+    const injectionScore = calculateInjectionScore(classification);
 
     const reply = await generateChatReply(message);
-    return NextResponse.json({ reply, classification });
+    return NextResponse.json({ reply, classification, injectionScore });
   } catch (error) {
     const description =
       error instanceof Error ? error.message : "Unknown server error";

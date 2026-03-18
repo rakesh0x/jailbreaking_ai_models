@@ -25,6 +25,18 @@ type SemanticClassification = {
     explanation: string;
 };
 
+type InjectionScore = {
+    totalScore: number;
+    maxScore: number;
+    percentage: number;
+    category: "harmless" | "low" | "moderate" | "high" | "critical";
+    breakdown: {
+        typeScore: number;
+        confidenceBonus: number;
+        riskBonus: number;
+    };
+};
+
 export default function ChatPage() {
     const [message, setMessage] = useState("");
     const [messages, setMessages] = useState<ChatMessage[]>([
@@ -37,6 +49,7 @@ export default function ChatPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [classification, setClassification] = useState<SemanticClassification | null>(null);
+    const [injectionScore, setInjectionScore] = useState<InjectionScore | null>(null);
 
     async function sendMessage() {
         setError("");
@@ -62,6 +75,7 @@ export default function ChatPage() {
                 reply?: string;
                 error?: string;
                 classification?: SemanticClassification;
+                injectionScore?: InjectionScore;
             };
 
             if (!response.ok) {
@@ -73,6 +87,7 @@ export default function ChatPage() {
                 { role: "assistant", content: data.reply || "No response text returned." },
             ]);
             setClassification(data.classification ?? null);
+            setInjectionScore(data.injectionScore ?? null);
         } catch (submitError) {
             const messageText =
                 submitError instanceof Error
@@ -80,6 +95,7 @@ export default function ChatPage() {
                     : "An unknown error occurred.";
             setError(messageText);
             setClassification(null);
+            setInjectionScore(null);
             setMessages((prev) => [
                 ...prev,
                 {
@@ -188,6 +204,55 @@ export default function ChatPage() {
                             <span className={styles.metricLabel}>Explanation</span>
                             <p className={styles.noTechniques}>{classification.explanation}</p>
                         </div>
+
+                        {injectionScore ? (
+                            <div className={styles.injectionScoreSection}>
+                                <div className={styles.securityHeader} style={{ marginTop: "16px" }}>
+                                    Prompt Injection Score
+                                </div>
+                                <div className={styles.securityGrid}>
+                                    <div>
+                                        <span className={styles.metricLabel}>Score</span>
+                                        <p className={styles.metricValue}>
+                                            {injectionScore.totalScore}/{injectionScore.maxScore}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span className={styles.metricLabel}>Category</span>
+                                        <p
+                                            className={styles.metricValue}
+                                            style={{
+                                                color:
+                                                    injectionScore.category === "harmless"
+                                                        ? "#10b981"
+                                                        : injectionScore.category === "low"
+                                                          ? "#3b82f6"
+                                                          : injectionScore.category === "moderate"
+                                                            ? "#f59e0b"
+                                                            : injectionScore.category === "high"
+                                                              ? "#ef4444"
+                                                              : "#7f1d1d",
+                                            }}
+                                        >
+                                            {injectionScore.category}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <span className={styles.metricLabel}>Percentage</span>
+                                        <p className={styles.metricValue}>{injectionScore.percentage}%</p>
+                                    </div>
+                                </div>
+
+                                <div className={styles.techniquesWrap}>
+                                    <span className={styles.metricLabel}>Score Breakdown</span>
+                                    <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                                        <p>Type Score: {injectionScore.breakdown.typeScore}</p>
+                                        <p>Confidence Bonus: +{injectionScore.breakdown.confidenceBonus}</p>
+                                        <p>Risk Bonus: +{injectionScore.breakdown.riskBonus}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
                     </section>
                 ) : null}
 
